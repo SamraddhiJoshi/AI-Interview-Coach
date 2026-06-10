@@ -8,6 +8,7 @@ const { connectCloudinary } = require("./config/cloudinary");
 const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const resumeRoutes = require("./routes/resumeRoutes");
+const interviewRoutes = require("./routes/interviewRoutes");
 
 const errorHandler = require("./middleware/errorHandler");
 
@@ -61,6 +62,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/resume", resumeRoutes);
+app.use("/api/interviews", interviewRoutes);
 
 // 404 Handler
 app.use("*", (req, res) => {

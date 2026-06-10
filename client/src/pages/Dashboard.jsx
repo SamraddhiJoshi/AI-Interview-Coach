@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getDashboard } from "../api/auth";
+import { getInterviewHistory } from "../api/interview";
 
 const StatCard = ({ icon, label, value, color }) => (
   <div className="card-glass p-5 flex items-center gap-4">
@@ -19,6 +20,7 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,7 +34,16 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
+    const fetchHistory = async () => {
+      try {
+        const res = await getInterviewHistory();
+        setHistory(res.data);
+      } catch {
+        // Error handled by interceptor
+      }
+    };
     fetchDashboard();
+    fetchHistory();
   }, []);
 
   const handleLogout = () => {
@@ -130,12 +141,93 @@ const Dashboard = () => {
           <p className="text-slate-400 font-body text-sm mb-6 max-w-md mx-auto">
             Start an AI-powered mock interview session and get real-time feedback to sharpen your skills.
           </p>
-          <button className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-display font-semibold py-3 px-7 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50">
+          <button
+            onClick={() => navigate("/interview/setup")}
+            className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-display font-semibold py-3 px-7 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+          >
             Start Interview Session
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
           </button>
+        </div>
+
+        {/* Previous Interviews History */}
+        <div className="mt-10 animate-fade-up" style={{ animationDelay: "0.25s" }}>
+          <h2 className="font-display text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-brand-400">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+            Previous Interviews
+          </h2>
+
+          {history.length === 0 ? (
+            <div className="card-glass p-8 text-center">
+              <p className="text-slate-400 font-body text-sm">No mock interviews started yet. Click "Start Interview Session" above to begin!</p>
+            </div>
+          ) : (
+            <div className="card-glass overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/[0.06] bg-white/[0.01]">
+                      <th className="px-6 py-4 text-xs font-display font-bold text-slate-400 uppercase tracking-wider">Role & Level</th>
+                      <th className="px-6 py-4 text-xs font-display font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-xs font-display font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-xs font-display font-bold text-slate-400 uppercase tracking-wider text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {history.map((item) => (
+                      <tr key={item._id} className="hover:bg-white/[0.01] transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="text-white font-body font-semibold text-sm">{item.role}</p>
+                          <p className="text-slate-400 text-xs font-body mt-0.5">{item.experienceLevel}</p>
+                        </td>
+                        <td className="px-6 py-4 text-slate-300 font-body text-sm">
+                          {new Date(item.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </td>
+                        <td className="px-6 py-4">
+                          {item.status === "completed" || item.status === "evaluated" ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-body font-medium">
+                              <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                              Completed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-body font-medium">
+                              <span className="w-1 h-1 rounded-full bg-amber-400" />
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {item.status === "completed" || item.status === "evaluated" ? (
+                            <button
+                              onClick={() => navigate(`/interview/results/${item._id}`)}
+                              className="px-4 py-2 rounded-xl bg-brand-600/20 border border-brand-500/30 text-brand-300 hover:bg-brand-600/30 hover:border-brand-500/50 text-xs font-display font-semibold transition-all"
+                            >
+                              View Result
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => navigate(`/interview/${item._id}`)}
+                              className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 hover:border-amber-500/50 text-xs font-display font-semibold transition-all"
+                            >
+                              Resume
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Auth token display (dev helper) */}

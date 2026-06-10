@@ -6,6 +6,9 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ResumeUpload from "./pages/ResumeUpload";
+import InterviewSetup from "./pages/InterviewSetup";
+import InterviewSession from "./pages/InterviewSession";
+import InterviewResults from "./pages/InterviewResults";
 
 function App() {
   return (
@@ -31,6 +34,33 @@ function App() {
             element={
               <ProtectedRoute>
                 <ResumeUpload />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/interview/setup"
+            element={
+              <ProtectedRoute>
+                <InterviewSetup />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/interview/:id"
+            element={
+              <ProtectedRoute>
+                <InterviewSession />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/interview/results/:id"
+            element={
+              <ProtectedRoute>
+                <InterviewResults />
               </ProtectedRoute>
             }
           />
