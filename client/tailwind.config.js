@@ -31,8 +31,8 @@ export default {
         },
       },
       animation: {
-        "fade-up": "fadeUp 0.5s ease forwards",
-        "fade-in": "fadeIn 0.4s ease forwards",
+        "fade-up": "fadeUp 0.5s ease both",
+        "fade-in": "fadeIn 0.4s ease both",
         shimmer: "shimmer 2s infinite",
       },
       keyframes: {

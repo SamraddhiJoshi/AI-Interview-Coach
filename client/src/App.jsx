@@ -1,25 +1,36 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import ResumeUpload from "./pages/ResumeUpload";
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public routes */}
+          {/* Public Routes */}
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
 
-          {/* Protected routes */}
+          {/* Protected Routes */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/resume"
+            element={
+              <ProtectedRoute>
+                <ResumeUpload />
               </ProtectedRoute>
             }
           />

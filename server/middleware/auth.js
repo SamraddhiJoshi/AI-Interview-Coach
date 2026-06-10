@@ -9,7 +9,11 @@ const protect = async (req, res, next) => {
     req.headers.authorization.startsWith("Bearer")
   ) {
     token = req.headers.authorization.split(" ")[1];
+  } else if (req.query.token) {
+    token = req.query.token;
   }
+
+  console.log("AUTH HEADER:", req.headers.authorization);
 
   if (!token) {
     return res.status(401).json({
@@ -31,10 +35,17 @@ const protect = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid or expired token.",
-    });
+    if (
+      error.name === "JsonWebTokenError" ||
+      error.name === "TokenExpiredError" ||
+      error.name === "NotBeforeError"
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token.",
+      });
+    }
+    next(error);
   }
 };
 

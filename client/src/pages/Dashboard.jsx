@@ -98,7 +98,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 animate-fade-up" style={{ animationDelay: "0.1s", opacity: 0 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
           <StatCard
             icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="white" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
             label="Interviews Done"
@@ -120,7 +120,7 @@ const Dashboard = () => {
         </div>
 
         {/* CTA */}
-        <div className="card-glass p-8 text-center animate-fade-up" style={{ animationDelay: "0.2s", opacity: 0 }}>
+        <div className="card-glass p-8 text-center animate-fade-up" style={{ animationDelay: "0.2s" }}>
           <div className="w-14 h-14 rounded-2xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center mx-auto mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#818cf8" className="w-7 h-7">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
@@ -139,7 +139,7 @@ const Dashboard = () => {
         </div>
 
         {/* Auth token display (dev helper) */}
-        <div className="mt-6 card-glass p-4 animate-fade-up" style={{ animationDelay: "0.3s", opacity: 0 }}>
+        <div className="mt-6 card-glass p-4 animate-fade-up" style={{ animationDelay: "0.3s" }}>
           <p className="text-xs font-mono text-slate-500 uppercase tracking-wider mb-2">🔐 JWT Token (stored in localStorage)</p>
           <p className="text-xs font-mono text-brand-400 break-all">
             {localStorage.getItem("token")?.substring(0, 60)}...
