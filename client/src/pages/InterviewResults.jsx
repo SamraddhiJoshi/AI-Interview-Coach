@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getInterview } from "../api/interview";
+import { getInterview, evaluateInterviewSession } from "../api/interview";
 
 const NavBar = ({ user, onLogout }) => {
   const initials = user?.name
@@ -79,6 +79,8 @@ const InterviewResults = () => {
   const [interview, setInterview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [evaluating, setEvaluating] = useState(false);
+  const [evalError, setEvalError] = useState("");
 
   useEffect(() => {
     const fetchInterview = async () => {
@@ -104,6 +106,21 @@ const InterviewResults = () => {
 
     fetchInterview();
   }, [id, navigate]);
+
+  const handleGenerateFeedback = async () => {
+    setEvaluating(true);
+    setEvalError("");
+    try {
+      const res = await evaluateInterviewSession(id);
+      setInterview(res.data);
+    } catch (err) {
+      setEvalError(
+        err.response?.data?.message || "Failed to generate AI evaluation. Please try again."
+      );
+    } finally {
+      setEvaluating(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -206,32 +223,149 @@ const InterviewResults = () => {
           </div>
         </div>
 
-        {/* Warning banner indicating AI evaluation is step 4 */}
-        <div className="mt-6 card-glass p-5 border-amber-500/20 bg-amber-500/5 flex items-start gap-4 animate-fade-up" style={{ animationDelay: "0.15s" }}>
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 text-amber-400">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-5 h-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.813 15.904L9 21l8.904-4.43c.24-.12.392-.37.392-.644V15.75M3 10.5h18M3 14.25h18M3 6.75h18"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 className="font-display font-bold text-amber-300 text-sm">
-              AI Assessment Pending
-            </h3>
-            <p className="text-slate-400 font-body text-xs mt-1 leading-relaxed">
-              Your answers have been stored. AI-powered evaluations, scoring, and critical feedback modules will be integrated in Step 4. Currently, you can review your raw answers below.
-            </p>
-          </div>
+        {/* AI Evaluation Section */}
+        <div className="mt-6 animate-fade-up" style={{ animationDelay: "0.15s" }}>
+          {interview?.status === "evaluated" && interview?.evaluationStatus === "completed" ? (
+            <div className="card-glass p-8 border-brand-500/20 bg-brand-500/5 space-y-6">
+              {/* Header with Score and Timestamp */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/[0.06] pb-5 gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-brand-600/20 border border-brand-500/30 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-display font-bold text-brand-300">
+                      {interview.score}
+                    </span>
+                    <span className="text-[10px] uppercase font-display font-semibold text-slate-500 tracking-wider">
+                      / 10
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-white text-lg">
+                      AI Performance Assessment
+                    </h3>
+                    <p className="text-slate-400 font-body text-xs mt-0.5">
+                      Evaluated on {formatDate(interview.evaluatedAt)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl px-4 py-2.5">
+                  <span className="text-xs font-display font-semibold text-slate-500 uppercase tracking-wider block">
+                    Hiring Recommendation
+                  </span>
+                  <span className="text-brand-300 font-body font-semibold text-sm mt-0.5 block">
+                    {interview.hiringRecommendation}
+                  </span>
+                </div>
+              </div>
+
+              {/* Strengths, Weaknesses, Suggestions Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Strengths */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h4 className="font-display font-bold text-sm uppercase tracking-wider text-slate-300">Key Strengths</h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {interview.strengths && interview.strengths.length > 0 ? (
+                      interview.strengths.map((str, idx) => (
+                        <li key={idx} className="text-slate-400 font-body text-xs leading-relaxed flex items-start gap-2">
+                          <span className="text-emerald-500 mt-0.5">•</span>
+                          <span>{str}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <p className="text-slate-500 italic text-xs">No key strengths noted.</p>
+                    )}
+                  </ul>
+                </div>
+
+                {/* Weaknesses */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    <h4 className="font-display font-bold text-sm uppercase tracking-wider text-slate-300">Areas to Improve</h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {interview.weaknesses && interview.weaknesses.length > 0 ? (
+                      interview.weaknesses.map((weak, idx) => (
+                        <li key={idx} className="text-slate-400 font-body text-xs leading-relaxed flex items-start gap-2">
+                          <span className="text-red-500 mt-0.5">•</span>
+                          <span>{weak}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <p className="text-slate-500 italic text-xs">No significant weaknesses noted.</p>
+                    )}
+                  </ul>
+                </div>
+
+                {/* Suggestions */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-brand-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
+                    </svg>
+                    <h4 className="font-display font-bold text-sm uppercase tracking-wider text-slate-300">Actionable Advice</h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {interview.suggestions && interview.suggestions.length > 0 ? (
+                      interview.suggestions.map((sug, idx) => (
+                        <li key={idx} className="text-slate-400 font-body text-xs leading-relaxed flex items-start gap-2">
+                          <span className="text-brand-500 mt-0.5">•</span>
+                          <span>{sug}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <p className="text-slate-500 italic text-xs">No specific suggestions provided.</p>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="card-glass p-8 text-center space-y-6">
+              <div className="w-14 h-14 rounded-2xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-brand-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 21l8.904-4.43c.24-.12.392-.37.392-.644V15.75M3 10.5h18M3 14.25h18M3 6.75h18" />
+                </svg>
+              </div>
+
+              <div className="space-y-2 max-w-md mx-auto">
+                <h3 className="font-display font-bold text-white text-lg">
+                  AI Assessment Pending
+                </h3>
+                <p className="text-slate-400 font-body text-sm leading-relaxed">
+                  Your mock interview has been submitted successfully! Generate real-time performance feedback, strengths, suggestions, and grading powered by Google Gemini AI.
+                </p>
+              </div>
+
+              {/* Error indicator */}
+              {(evalError || interview?.evaluationStatus === "failed") && (
+                <div className="max-w-md mx-auto px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-body animate-fade-up">
+                  {evalError || "API key misconfigured or Google Gemini service quota exceeded. Please contact administrator."}
+                </div>
+              )}
+
+              {evaluating || (interview?.status === "evaluated" && interview?.evaluationStatus === "pending") ? (
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="w-7 h-7 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
+                  <p className="text-slate-400 text-xs font-body animate-pulse">Gemini AI is evaluating your interview... This may take up to 30 seconds.</p>
+                </div>
+              ) : (
+                <button
+                  onClick={handleGenerateFeedback}
+                  className="btn-primary max-w-xs mx-auto"
+                >
+                  Generate AI Feedback
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Questions and Answers List */}

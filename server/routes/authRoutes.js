@@ -1,9 +1,22 @@
 const express = require("express");
 const { body } = require("express-validator");
+const rateLimit = require("express-rate-limit");
 const { register, login, getMe } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 
 const router = express.Router();
+
+// Rate limiter for auth endpoints — 20 requests per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests. Please try again after 15 minutes.",
+  },
+});
 
 // Validation rules
 const registerValidation = [
@@ -32,8 +45,8 @@ const loginValidation = [
     .notEmpty().withMessage("Password is required."),
 ];
 
-router.post("/register", registerValidation, register);
-router.post("/login", loginValidation, login);
+router.post("/register", authLimiter, registerValidation, register);
+router.post("/login", authLimiter, loginValidation, login);
 router.get("/me", protect, getMe);
 
 module.exports = router;

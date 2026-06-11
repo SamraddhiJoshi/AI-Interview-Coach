@@ -1,5 +1,6 @@
 const Interview = require("../models/Interview");
 const questionBank = require("../data/questionBank");
+const geminiService = require("../services/geminiService");
 
 // Role mapping from UI role to questionBank keys
 const roleMap = {
@@ -145,6 +146,14 @@ const submitInterview = async (req, res, next) => {
       });
     }
 
+    // Prevent re-submitting completed/evaluated interviews
+    if (interview.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Interview is already completed or evaluated.",
+      });
+    }
+
     // Ensure answers array size matches questions array size
     if (answers.length !== interview.questions.length) {
       return res.status(400).json({
@@ -257,10 +266,112 @@ const saveProgress = async (req, res, next) => {
   }
 };
 
+// @desc    Evaluate a completed mock interview session using Gemini API
+// @route   POST /api/interviews/:id/evaluate
+// @access  Private
+const evaluateInterview = async (req, res, next) => {
+  try {
+    const interview = await Interview.findById(req.params.id);
+
+    if (!interview) {
+      return res.status(404).json({
+        success: false,
+        message: "Interview session not found.",
+      });
+    }
+
+    // Validate ownership
+    if (interview.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to access this interview.",
+      });
+    }
+
+    // Return stored evaluation early if already completed
+    if (interview.evaluationStatus === "completed") {
+      return res.status(200).json({
+        success: true,
+        message: "Stored evaluation retrieved successfully.",
+        data: interview,
+      });
+    }
+
+    // Interview must be completed
+    if (interview.status !== "completed" && interview.status !== "evaluated") {
+      return res.status(400).json({
+        success: false,
+        message: "Interview session must be completed before evaluation.",
+      });
+    }
+
+    // Ensure answers are present
+    if (!interview.answers || interview.answers.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No answers found in the interview session.",
+      });
+    }
+
+    // Set status to pending while calling Gemini
+    interview.evaluationStatus = "pending";
+    await interview.save();
+
+    try {
+      const evaluation = await geminiService.evaluateInterview(
+        interview.role,
+        interview.experienceLevel,
+        interview.questions,
+        interview.answers
+      );
+
+      // Validate and clamp score between 1 and 10
+      let numericScore = parseFloat(evaluation.score);
+      if (isNaN(numericScore)) {
+        numericScore = 1;
+      }
+      // Clamp between 1 and 10
+      numericScore = Math.max(1, Math.min(10, Math.round(numericScore)));
+
+      // Save evaluation fields
+      interview.score = numericScore;
+      interview.strengths = Array.isArray(evaluation.strengths) ? evaluation.strengths : [];
+      interview.weaknesses = Array.isArray(evaluation.weaknesses) ? evaluation.weaknesses : [];
+      interview.suggestions = Array.isArray(evaluation.suggestions) ? evaluation.suggestions : [];
+      interview.hiringRecommendation = evaluation.hiringRecommendation || "No recommendation provided.";
+      interview.evaluationStatus = "completed";
+      interview.status = "evaluated";
+      interview.evaluatedAt = new Date();
+
+      const updatedInterview = await interview.save();
+
+      res.status(200).json({
+        success: true,
+        message: "AI evaluation completed successfully.",
+        data: updatedInterview,
+      });
+    } catch (apiError) {
+      console.error("Gemini AI evaluation failed:", apiError.message);
+      
+      // Update DB status to failed
+      interview.evaluationStatus = "failed";
+      await interview.save();
+
+      res.status(502).json({
+        success: false,
+        message: `AI evaluation failed: ${apiError.message}`,
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   generateInterview,
   getInterview,
   submitInterview,
   getInterviewHistory,
   saveProgress,
+  evaluateInterview,
 };

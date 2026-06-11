@@ -6,6 +6,7 @@ const interviewSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: [true, "User ID is required"],
+      index: true,
     },
     role: {
       type: String,
@@ -53,6 +54,31 @@ const interviewSchema = new mongoose.Schema(
     currentQuestionIndex: {
       type: Number,
       default: 0,
+    },
+    strengths: {
+      type: [String],
+      default: [],
+    },
+    weaknesses: {
+      type: [String],
+      default: [],
+    },
+    suggestions: {
+      type: [String],
+      default: [],
+    },
+    hiringRecommendation: {
+      type: String,
+      default: null,
+    },
+    evaluationStatus: {
+      type: String,
+      enum: ["pending", "completed", "failed"],
+      default: "pending",
+    },
+    evaluatedAt: {
+      type: Date,
+      default: null,
     },
   },
   {

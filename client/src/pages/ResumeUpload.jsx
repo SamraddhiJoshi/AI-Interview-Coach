@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { uploadResume, getResume, deleteResume } from "../api/resume";
+import api from "../api/axios";
 
 // ─── Utility ────────────────────────────────────────────────────────────────
 const formatFileSize = (bytes) => {
@@ -251,7 +252,7 @@ const ProgressBar = ({ progress, fileName }) => (
   </div>
 );
 
-const ResumeCard = ({ resume, onDelete, deleting }) => (
+const ResumeCard = ({ resume, onDelete, deleting, onView, viewing }) => (
   <div className="card-glass rounded-2xl overflow-hidden">
     {/* Header strip */}
     <div className="h-1 bg-gradient-to-r from-brand-600 via-brand-400 to-indigo-400" />
@@ -309,30 +310,34 @@ const ResumeCard = ({ resume, onDelete, deleting }) => (
 
       {/* Actions */}
       <div className="mt-4 flex items-center gap-3">
-        <a
-          href={`${import.meta.env.VITE_API_URL}/resume/view?token=${localStorage.getItem("token")}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={onView}
+          disabled={viewing}
           className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500
             text-white text-sm font-display font-semibold py-2.5 px-4 rounded-xl transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+            focus:outline-none focus:ring-2 focus:ring-brand-500/50
+            disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="w-4 h-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-            />
-          </svg>
-          View Resume
-        </a>
+          {viewing ? (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+              />
+            </svg>
+          )}
+          {viewing ? "Opening..." : "View Resume"}
+        </button>
         <button
           onClick={onDelete}
           disabled={deleting}
@@ -426,6 +431,7 @@ const ResumeUpload = () => {
   const [selectedFile, setSelectedFile] = useState(null);
 
   const [deleting, setDeleting] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = "success") => {
@@ -438,10 +444,6 @@ const ResumeUpload = () => {
     const fetchResume = async () => {
       try {
         const data = await getResume();
-
-        console.log("RESUME DATA:", data.resume);
-        console.log("FILE URL:", data.resume.fileUrl);
-
         setResume(data.resume);
       } catch {
         // 404 means no resume yet — that's fine
@@ -482,6 +484,22 @@ const ResumeUpload = () => {
       setUploading(false);
       setSelectedFile(null);
       setUploadProgress(0);
+    }
+  };
+
+  const handleViewResume = async () => {
+    setViewing(true);
+    try {
+      const response = await api.get("/resume/view", { responseType: "blob" });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+      // Revoke after a delay to allow the tab to load
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch {
+      showToast("Failed to open resume. Please try again.", "error");
+    } finally {
+      setViewing(false);
     }
   };
 
@@ -619,6 +637,8 @@ const ResumeUpload = () => {
                 resume={resume}
                 onDelete={handleDelete}
                 deleting={deleting}
+                onView={handleViewResume}
+                viewing={viewing}
               />
             ) : (
               <div className="card-glass rounded-2xl p-10 flex flex-col items-center gap-3 text-center">

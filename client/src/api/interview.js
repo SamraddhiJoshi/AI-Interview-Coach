@@ -23,6 +23,11 @@ export const saveInterviewProgress = async (id, currentQuestionIndex, answers) =
   return response.data;
 };
 
+export const evaluateInterviewSession = async (id) => {
+  const response = await api.post(`/interviews/${id}/evaluate`);
+  return response.data;
+};
+
 export const getInterviewHistory = async () => {
   const response = await api.get("/interviews/history");
   return response.data;

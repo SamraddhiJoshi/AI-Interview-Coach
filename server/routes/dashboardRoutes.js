@@ -11,8 +11,19 @@ router.get("/", protect, async (req, res, next) => {
   try {
     const completedCount = await Interview.countDocuments({
       userId: req.user._id,
-      status: "completed",
+      status: { $in: ["completed", "evaluated"] },
     });
+
+    const evaluatedInterviews = await Interview.find({
+      userId: req.user._id,
+      status: "evaluated",
+    });
+
+    let averageScore = 0;
+    if (evaluatedInterviews.length > 0) {
+      const sum = evaluatedInterviews.reduce((acc, curr) => acc + (curr.score || 0), 0);
+      averageScore = Math.round((sum / evaluatedInterviews.length) * 10) / 10;
+    }
 
     res.status(200).json({
       success: true,
@@ -25,8 +36,8 @@ router.get("/", protect, async (req, res, next) => {
         },
         stats: {
           interviewsCompleted: completedCount,
-          averageScore: 0,
-          practiceHours: 0,
+          averageScore,
+          practiceHours: 0, // Placeholder, can be updated later if tracking time
         },
       },
     });

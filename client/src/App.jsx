@@ -9,6 +9,7 @@ import ResumeUpload from "./pages/ResumeUpload";
 import InterviewSetup from "./pages/InterviewSetup";
 import InterviewSession from "./pages/InterviewSession";
 import InterviewResults from "./pages/InterviewResults";
+import Analytics from "./pages/Analytics";
 
 function App() {
   return (
@@ -61,6 +62,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <InterviewResults />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
               </ProtectedRoute>
             }
           />

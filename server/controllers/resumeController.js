@@ -63,17 +63,6 @@ const uploadResume = async (req, res, next) => {
       req.file.originalname,
     );
 
-    console.log("UPLOAD RESULT:");
-    console.log({
-      resource_type: result.resource_type,
-      format: result.format,
-      secure_url: result.secure_url,
-      public_id: result.public_id,
-    });
-
-    console.log("SECURE URL:", result.secure_url);
-    console.log("PUBLIC ID:", result.public_id);
-    
     const existingResume = await Resume.findOne({
       userId: req.user._id,
     });

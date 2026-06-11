@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getDashboard } from "../api/auth";
 import { getInterviewHistory } from "../api/interview";
@@ -22,14 +22,15 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
         const data = await getDashboard();
         setStats(data.data.stats);
-      } catch {
-        // Error handled by interceptor
+      } catch (err) {
+        if (err.response?.status !== 401) setError(true);
       } finally {
         setLoading(false);
       }
@@ -38,8 +39,8 @@ const Dashboard = () => {
       try {
         const res = await getInterviewHistory();
         setHistory(res.data);
-      } catch {
-        // Error handled by interceptor
+      } catch (err) {
+        if (err.response?.status !== 401) setError(true);
       }
     };
     fetchDashboard();
@@ -59,6 +60,9 @@ const Dashboard = () => {
     ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "—";
 
+  const evaluatedInterviews = history.filter((h) => h.evaluationStatus === "completed");
+  const latestScore = evaluatedInterviews.length > 0 ? evaluatedInterviews[0].score : null;
+
   return (
     <div className="min-h-screen gradient-mesh noise">
       <div className="fixed top-[-5%] right-[-5%] w-96 h-96 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -75,14 +79,20 @@ const Dashboard = () => {
             <span className="font-display font-bold text-white tracking-tight">InterviewAI</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center">
+          <div className="flex items-center gap-6">
+            <Link to="/dashboard" className="text-brand-400 hover:text-brand-300 text-sm font-body font-semibold transition-colors">
+              Dashboard
+            </Link>
+            <Link to="/analytics" className="text-slate-400 hover:text-white text-sm font-body transition-colors">
+              Analytics
+            </Link>
+            <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-display font-bold">{initials}</span>
             </div>
-            <span className="text-slate-300 text-sm font-body hidden sm:block">{user?.name}</span>
+            <span className="text-slate-300 text-sm font-body hidden md:block truncate max-w-[120px]">{user?.name}</span>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-slate-400 hover:text-red-400 text-sm font-body transition-colors ml-2 px-3 py-1.5 rounded-lg hover:bg-red-500/10"
+              className="flex items-center gap-1.5 text-slate-400 hover:text-red-400 text-sm font-body transition-colors px-3 py-1.5 rounded-lg hover:bg-red-500/10 shrink-0"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
@@ -108,6 +118,13 @@ const Dashboard = () => {
           </p>
         </div>
 
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 mb-10 text-center animate-fade-up">
+            <h2 className="text-red-400 font-display font-bold text-lg mb-2">Unable to load dashboard</h2>
+            <p className="text-red-400/80 font-body text-sm">We couldn't connect to our servers. Please check your connection and try refreshing the page.</p>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
           <StatCard
@@ -119,7 +136,7 @@ const Dashboard = () => {
           <StatCard
             icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="white" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>}
             label="Average Score"
-            value={loading ? "—" : `${stats?.averageScore ?? 0}%`}
+            value={loading ? "—" : `${stats?.averageScore ?? 0}/10`}
             color="bg-brand-500/20"
           />
           <StatCard
@@ -130,26 +147,74 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* CTA */}
-        <div className="card-glass p-8 text-center animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          <div className="w-14 h-14 rounded-2xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#818cf8" className="w-7 h-7">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-            </svg>
+        {/* CTA and Analytics Summary Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
+          {/* Practice CTA */}
+          <div className="card-glass p-8 flex flex-col justify-between items-center text-center">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center mx-auto mb-4 text-brand-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                </svg>
+              </div>
+              <h2 className="font-display text-lg font-bold text-white mb-2">Ready to practice?</h2>
+              <p className="text-slate-400 font-body text-xs mb-6 max-w-sm">
+                Start an AI-powered mock interview session and get real-time feedback to sharpen your skills.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/interview/setup")}
+              className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-display font-semibold py-2.5 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
+            >
+              Start Interview Session
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </button>
           </div>
-          <h2 className="font-display text-xl font-bold text-white mb-2">Ready to practice?</h2>
-          <p className="text-slate-400 font-body text-sm mb-6 max-w-md mx-auto">
-            Start an AI-powered mock interview session and get real-time feedback to sharpen your skills.
-          </p>
-          <button
-            onClick={() => navigate("/interview/setup")}
-            className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-display font-semibold py-3 px-7 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-          >
-            Start Interview Session
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </button>
+
+          {/* Analytics Summary Card */}
+          <div className="card-glass p-8 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-display text-lg font-bold text-white">Performance Insights</h2>
+                <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-slate-400 font-body text-xs mb-6">
+                Track your scores, streaks, classifications, and view key actionable feedback from Gemini AI.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3.5">
+                  <span className="text-[10px] font-display font-bold uppercase tracking-wider text-slate-500 block mb-1">Average Score</span>
+                  <span className="font-display font-bold text-white text-xl">
+                    {stats?.averageScore ? `${stats.averageScore}/10` : "—"}
+                  </span>
+                </div>
+                <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3.5">
+                  <span className="text-[10px] font-display font-bold uppercase tracking-wider text-slate-500 block mb-1">Latest Score</span>
+                  <span className="font-display font-bold text-white text-xl">
+                    {latestScore !== null ? `${latestScore}/10` : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => navigate("/analytics")}
+              className="w-full inline-flex items-center justify-center gap-2 border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white font-display font-semibold py-2.5 px-6 rounded-xl transition-all duration-200 text-sm"
+            >
+              View Full Analytics
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Previous Interviews History */}
@@ -230,13 +295,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Auth token display (dev helper) */}
-        <div className="mt-6 card-glass p-4 animate-fade-up" style={{ animationDelay: "0.3s" }}>
-          <p className="text-xs font-mono text-slate-500 uppercase tracking-wider mb-2">🔐 JWT Token (stored in localStorage)</p>
-          <p className="text-xs font-mono text-brand-400 break-all">
-            {localStorage.getItem("token")?.substring(0, 60)}...
-          </p>
-        </div>
       </main>
     </div>
   );
