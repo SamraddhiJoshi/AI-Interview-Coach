@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getDashboard } from "../api/auth";
 import { getInterviewHistory } from "../api/interview";
+import { getResume } from "../api/resume";
 
 const StatCard = ({ icon, label, value, color }) => (
   <div className="card-glass p-5 flex items-center gap-4">
@@ -21,6 +22,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
+  const [resumeData, setResumeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -43,8 +45,20 @@ const Dashboard = () => {
         if (err.response?.status !== 401) setError(true);
       }
     };
+    const fetchResumeData = async () => {
+      try {
+        const res = await getResume();
+        setResumeData(res.resume);
+      } catch (err) {
+        // 404 is expected if no resume exists
+        if (err.response?.status !== 404 && err.response?.status !== 401) {
+          console.error("Failed to fetch resume");
+        }
+      }
+    };
     fetchDashboard();
     fetchHistory();
+    fetchResumeData();
   }, []);
 
   const handleLogout = () => {
@@ -147,8 +161,73 @@ const Dashboard = () => {
           />
         </div>
 
+        {/* Profile Summary Card */}
+        <div className="card-glass p-8 mb-10 animate-fade-up" style={{ animationDelay: "0.15s" }}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-display text-xl font-bold text-white flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-brand-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
+              </svg>
+              Profile Summary
+            </h2>
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold font-display uppercase tracking-wider ${
+                resumeData?.isAnalyzed ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : 
+                resumeData ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : 
+                "bg-slate-500/20 text-slate-400 border border-slate-500/30"
+              }`}>
+                {resumeData?.isAnalyzed ? "Analyzed" : resumeData ? "Pending" : "Not Uploaded"}
+              </span>
+              {resumeData?.analyzedAt && (
+                <span className="text-xs font-body text-slate-400">
+                  {new Date(resumeData.analyzedAt).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {resumeData?.isAnalyzed && resumeData.parsedData ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="text-sm font-display font-bold text-slate-300 mb-3 uppercase tracking-wider">Top Skills & Technologies</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[...(resumeData.parsedData.skills || []), ...(resumeData.parsedData.technologies || [])].slice(0, 10).map((skill, i) => (
+                    <span key={i} className="px-3 py-1 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-slate-300">
+                      {skill}
+                    </span>
+                  ))}
+                  {(!resumeData.parsedData.skills?.length && !resumeData.parsedData.technologies?.length) && (
+                    <span className="text-slate-500 text-sm italic">No skills extracted.</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-display font-bold text-slate-300 mb-3 uppercase tracking-wider">Recent Projects</h3>
+                <ul className="space-y-3">
+                  {resumeData.parsedData.projects?.slice(0, 2).map((proj, i) => (
+                    <li key={i} className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3">
+                      <h4 className="font-display font-semibold text-white text-sm">{proj.name}</h4>
+                      {proj.description && <p className="text-xs text-slate-400 mt-1 line-clamp-2">{proj.description}</p>}
+                    </li>
+                  ))}
+                  {!resumeData.parsedData.projects?.length && (
+                    <li className="text-slate-500 text-sm italic">No projects extracted.</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-white/[0.02] border border-white/[0.05] rounded-xl">
+              <p className="text-slate-400 text-sm mb-3">Upload your resume to enable AI personalization for your mock interviews.</p>
+              <button onClick={() => navigate("/resume")} className="text-brand-400 hover:text-brand-300 font-display font-semibold text-sm underline underline-offset-4">
+                Manage Resume
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* CTA and Analytics Summary Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
           {/* Practice CTA */}
           <div className="card-glass p-8 flex flex-col justify-between items-center text-center">
             <div>
@@ -167,6 +246,30 @@ const Dashboard = () => {
               className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-display font-semibold py-2.5 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
             >
               Start Interview Session
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Resume Management Card */}
+          <div className="card-glass p-8 flex flex-col justify-between items-center text-center">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4 text-emerald-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+              </div>
+              <h2 className="font-display text-lg font-bold text-white mb-2">Manage Resume</h2>
+              <p className="text-slate-400 font-body text-xs mb-6 max-w-sm">
+                Upload your resume so our AI can personalize interview questions based on your skills and experience.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/resume")}
+              className="inline-flex items-center gap-2 border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-300 hover:text-emerald-200 font-display font-semibold py-2.5 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm"
+            >
+              Manage Resume
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>

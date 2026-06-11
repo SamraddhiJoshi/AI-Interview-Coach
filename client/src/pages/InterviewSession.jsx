@@ -236,6 +236,16 @@ const InterviewSession = () => {
 
   return (
     <div className="min-h-screen gradient-mesh noise">
+      {submitting && (
+        <div className="fixed inset-0 bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-[100] animate-fade-in">
+          <div className="spinner mb-4 w-10 h-10 border-4 border-brand-500/30 border-t-brand-500" />
+          <h2 className="font-display font-bold text-xl text-white mb-2">Evaluating your answers...</h2>
+          <p className="text-slate-400 font-body text-sm max-w-md text-center">
+            Our AI coach is reviewing your responses. This might take a few moments.
+          </p>
+        </div>
+      )}
+
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-brand-700/10 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed bottom-0 left-0 w-96 h-96 bg-indigo-900/10 rounded-full blur-3xl pointer-events-none" />
 

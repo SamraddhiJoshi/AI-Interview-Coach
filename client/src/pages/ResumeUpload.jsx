@@ -457,32 +457,45 @@ const ResumeUpload = () => {
   const handleFileSelect = async (file) => {
     if (!file) return;
 
-    // Client-side validation
+    // Validate file type strictly
     if (file.type !== "application/pdf") {
-      showToast("Only PDF files are allowed.", "error");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      showToast("File exceeds 5MB limit. Please compress your PDF.", "error");
+      showToast("Only PDF files are supported.", "error");
       return;
     }
 
-    setSelectedFile(file);
     setUploading(true);
     setUploadProgress(0);
 
     try {
+      const formData = new FormData();
+      formData.append("resume", file);
+
+      // Simulate progress for user feedback
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + 10;
+        });
+      }, 500);
+
       const data = await uploadResume(file, setUploadProgress);
+      
+      clearInterval(interval);
+      setUploadProgress(100);
+      
       setResume(data.resume);
       showToast("Resume uploaded successfully!", "success");
+      
+      setTimeout(() => {
+        setUploading(false);
+        setUploadProgress(0);
+      }, 500);
     } catch (err) {
       showToast(
         err.response?.data?.message || "Upload failed. Please try again.",
         "error",
       );
-    } finally {
       setUploading(false);
-      setSelectedFile(null);
       setUploadProgress(0);
     }
   };
@@ -561,7 +574,7 @@ const ResumeUpload = () => {
             className="lg:col-span-3 space-y-4 animate-fade-up"
             style={{ animationDelay: "0.1s" }}
           >
-            <div className="card-glass rounded-2xl p-6">
+            <div className="card-glass rounded-2xl p-6 relative">
               <h2 className="font-display text-base font-semibold text-white mb-1">
                 {resume ? "Replace Resume" : "Upload Resume"}
               </h2>
@@ -577,6 +590,24 @@ const ResumeUpload = () => {
                 setIsDragging={setIsDragging}
                 uploading={uploading}
               />
+              
+              {uploading && (
+                <div className="absolute inset-0 bg-surface-900/80 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center animate-fade-in z-10">
+                  <div className="spinner mb-4 w-8 h-8 border-3" />
+                  <p className="text-white font-display font-semibold mb-2">
+                    {uploadProgress >= 90 ? "Analyzing Resume with AI..." : "Uploading File..."}
+                  </p>
+                  <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-brand-500 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-slate-400 text-xs mt-2 font-body">
+                    {uploadProgress >= 90 ? "Extracting skills and projects" : `${uploadProgress}%`}
+                  </p>
+                </div>
+              )}
 
               {/* Progress */}
               {uploading && selectedFile && (
