@@ -1,8 +1,10 @@
 const http = require("http");
 const https = require("https");
 const streamifier = require("streamifier");
+const crypto = require("crypto");
 const { cloudinary } = require("../config/cloudinary");
 const Resume = require("../models/Resume");
+const resumeAnalysisService = require("../services/resumeAnalysisService");
 
 // Upload buffer to Cloudinary
 const uploadToCloudinary = (buffer, folder, originalName) => {
@@ -54,6 +56,49 @@ const uploadResume = async (req, res, next) => {
       });
     }
 
+    const existingResume = await Resume.findOne({
+      userId: req.user._id,
+    });
+
+    // 1. Generate file hash
+    const hash = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+
+    // 2. Check if file is exactly the same
+    if (existingResume && existingResume.fileHash === hash) {
+      return res.status(200).json({
+        success: true,
+        message: "Resume already exists and is identical. Skipping analysis.",
+        resume: {
+          id: existingResume._id,
+          fileUrl: existingResume.fileUrl,
+          originalFileName: existingResume.originalFileName,
+          fileSize: existingResume.fileSize,
+          uploadedAt: existingResume.uploadedAt,
+          isAnalyzed: existingResume.isAnalyzed,
+          analyzedAt: existingResume.analyzedAt,
+          parsedData: existingResume.parsedData
+        },
+      });
+    }
+
+    // 3. Extract text and analyze
+    let extractedText = "";
+    let parsedData = null;
+    let isAnalyzed = false;
+    let analyzedAt = null;
+
+    try {
+      extractedText = await resumeAnalysisService.extractTextFromPDF(req.file.buffer);
+      if (extractedText && extractedText.trim().length > 0) {
+        parsedData = await resumeAnalysisService.analyzeResume(extractedText);
+        isAnalyzed = true;
+        analyzedAt = new Date();
+      }
+    } catch (analysisError) {
+      console.error("Resume analysis failed. Proceeding with upload only.", analysisError.message);
+      // We don't fail the upload if analysis fails, we just save what we have.
+    }
+
     const folder = `ai-interview-coach/resumes/${req.user._id}`;
 
     // Upload new buffer to Cloudinary
@@ -63,36 +108,39 @@ const uploadResume = async (req, res, next) => {
       req.file.originalname,
     );
 
-    const existingResume = await Resume.findOne({
-      userId: req.user._id,
-    });
-
     let oldPublicId = null;
     let oldType = "upload";
     let oldResourceType = "raw";
     let resume = null;
 
     if (existingResume) {
-      // Keep track of the old file's Cloudinary ID to delete it later
       oldPublicId = existingResume.publicId;
       oldType = existingResume.fileUrl.includes("/authenticated/") ? "authenticated" : "upload";
       oldResourceType = existingResume.fileUrl.includes("/raw/") ? "raw" : "image";
 
-      // Update the existing document instead of recreating it
       existingResume.fileUrl = result.secure_url;
       existingResume.publicId = result.public_id;
       existingResume.originalFileName = req.file.originalname;
       existingResume.fileSize = req.file.size;
+      existingResume.fileHash = hash;
+      existingResume.resumeText = extractedText;
+      existingResume.parsedData = parsedData;
+      existingResume.isAnalyzed = isAnalyzed;
+      existingResume.analyzedAt = analyzedAt;
 
       resume = await existingResume.save();
     } else {
-      // Create new document
       resume = await Resume.create({
         userId: req.user._id,
         fileUrl: result.secure_url,
         publicId: result.public_id,
         originalFileName: req.file.originalname,
         fileSize: req.file.size,
+        fileHash: hash,
+        resumeText: extractedText,
+        parsedData,
+        isAnalyzed,
+        analyzedAt
       });
     }
 
@@ -160,6 +208,9 @@ const getResume = async (req, res, next) => {
         originalFileName: resume.originalFileName,
         fileSize: resume.fileSize,
         uploadedAt: resume.uploadedAt,
+        isAnalyzed: resume.isAnalyzed,
+        analyzedAt: resume.analyzedAt,
+        parsedData: resume.parsedData
       },
     });
   } catch (error) {

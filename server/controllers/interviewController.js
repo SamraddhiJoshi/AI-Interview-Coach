@@ -1,4 +1,5 @@
 const Interview = require("../models/Interview");
+const Resume = require("../models/Resume");
 const questionBank = require("../data/questionBank");
 const geminiService = require("../services/geminiService");
 
@@ -58,9 +59,34 @@ const generateInterview = async (req, res, next) => {
       });
     }
 
-    // Pick random questions from question bank
-    const questionsPool = questionBank[bankKey];
-    const selectedQuestions = getRandomQuestions(questionsPool, numQuestions);
+    // MULTI-LEVEL FALLBACK SYSTEM
+    let selectedQuestions = [];
+    let questionSource = "default";
+    
+    // Level 1: Try Gemini Personalized Questions
+    try {
+      const resume = await Resume.findOne({ userId: req.user._id });
+      if (resume && resume.isAnalyzed && resume.parsedData) {
+        selectedQuestions = await geminiService.generatePersonalizedQuestions(
+          role, 
+          experienceLevel, 
+          numQuestions, 
+          resume.parsedData
+        );
+        questionSource = "personalized";
+      }
+    } catch (geminiError) {
+      console.error("Failed to generate personalized questions with Gemini:", geminiError.message);
+      // Fallback will occur automatically
+    }
+
+    // Level 2 & 3: Fallback to Skill-Based or Default Question Bank
+    if (!selectedQuestions || selectedQuestions.length === 0) {
+      const questionsPool = questionBank[bankKey];
+      selectedQuestions = getRandomQuestions(questionsPool, numQuestions);
+      // Since our question bank is technically skill-based based on role
+      questionSource = "skill-based"; 
+    }
 
     // Create interview record
     const interview = await Interview.create({
@@ -73,6 +99,7 @@ const generateInterview = async (req, res, next) => {
       status: "pending",
       score: null,
       feedback: null,
+      questionSource,
     });
 
     res.status(201).json({
@@ -350,16 +377,16 @@ const evaluateInterview = async (req, res, next) => {
         message: "AI evaluation completed successfully.",
         data: updatedInterview,
       });
-    } catch (apiError) {
-      console.error("Gemini AI evaluation failed:", apiError.message);
+    } catch (evaluationError) {
+      console.error("Gemini Evaluation Failed:", evaluationError.message);
       
-      // Update DB status to failed
+      // Revert status to failed so user can try again
       interview.evaluationStatus = "failed";
       await interview.save();
 
-      res.status(502).json({
+      return res.status(500).json({
         success: false,
-        message: `AI evaluation failed: ${apiError.message}`,
+        message: "AI evaluation service failed. Please try again later.",
       });
     }
   } catch (error) {

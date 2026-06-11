@@ -29,6 +29,32 @@ const resumeSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    parsedData: {
+      skills: [String],
+      technologies: [String],
+      programmingLanguages: [String],
+      projects: [{
+        name: String,
+        description: String
+      }],
+      experience: [{
+        title: String,
+        company: String,
+        duration: String
+      }],
+      education: [{
+        degree: String,
+        institution: String
+      }],
+      certifications: [String]
+    },
+    resumeText: String,
+    fileHash: String,
+    isAnalyzed: {
+      type: Boolean,
+      default: false
+    },
+    analyzedAt: Date
   },
   {
     timestamps: true,

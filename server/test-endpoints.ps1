@@ -193,7 +193,7 @@ if ($interviewId) {
         
         $body = @{
             currentQuestionIndex = 0
-            answers = @("Sample answer to first question")
+            answers = @("Sample answer to first question", "", "", "", "")
         } | ConvertTo-Json
         
         $response = Invoke-WebRequest -Uri "$BASE_URL/interviews/$interviewId/progress" `

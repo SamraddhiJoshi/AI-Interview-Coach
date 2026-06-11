@@ -80,6 +80,11 @@ const interviewSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    questionSource: {
+      type: String,
+      enum: ["personalized", "skill-based", "default"],
+      default: "default",
+    },
   },
   {
     timestamps: true,
